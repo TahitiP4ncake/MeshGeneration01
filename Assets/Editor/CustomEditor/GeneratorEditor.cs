@@ -6,6 +6,7 @@ using UnityEditor;
 [CustomEditor(typeof(Generator))]
 public class GeneratorEditor : Editor
 {
+    
     public override void OnInspectorGUI()
     {
         Generator generator = target as Generator;
@@ -20,3 +21,4 @@ public class GeneratorEditor : Editor
         }
     }
 }
+

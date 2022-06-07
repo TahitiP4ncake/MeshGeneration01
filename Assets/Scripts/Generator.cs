@@ -18,6 +18,13 @@ public enum MeshType
 
 }
 
+public enum ColorMode
+{
+    Uniform,
+    Gradient
+}
+
+
 public class Generator : MonoBehaviour
 {
 
@@ -44,19 +51,35 @@ public class Generator : MonoBehaviour
     public bool createUV;
     public bool setColor;
     public bool deletePrevious;
-    [Space]
+    [Space] 
+    
+    public ColorMode colorMode;
+    
     public Color color;
+    public Gradient gradientColor;
     [Space]
     public Material mat;
     [Space]
     public GameObject lastMesh;
 
+    [Space]
+    public bool showVertices;
     public Vector3[] vertex;
     public int[] triangles;
-    
-    
-    
 
+
+
+    void OnValidate()
+    {
+        GenerateMesh();
+    }
+
+    IEnumerator DestroyEndOfFrame(GameObject _objectToDestroy)
+    {
+        yield return null;
+        DestroyImmediate(_objectToDestroy);
+    }
+    
     [ContextMenu("Create Mesh")]
     public void GenerateMesh()
     {
@@ -64,7 +87,7 @@ public class Generator : MonoBehaviour
         {
             if (lastMesh != null)
             {
-                DestroyImmediate(lastMesh);
+                StartCoroutine(DestroyEndOfFrame(lastMesh));
             }
         }
 
@@ -767,13 +790,16 @@ public class Generator : MonoBehaviour
     
     public GameObject GenerateCylinderSubdiv()
     {
-        print("fais un cylindre stp");
+        //print("fais un cylindre stp");
         
         Mesh mesh = new Mesh();
         
         Vector3[] vert = new Vector3[resolution * (section+1) + (section+1)];
         triangles = new int[resolution*2*3 * section];
-        //Vector2[] uv = new Vector2[vert.Length];
+        Vector2[] uv = new Vector2[vert.Length];
+        Vector3[] normals = new Vector3[vert.Length];
+        
+        Color[] colors = new Color[vert.Length];
         
         vertex = new Vector3[vert.Length];
         
@@ -787,9 +813,22 @@ public class Generator : MonoBehaviour
 
 
                 int index = i +  j *(resolution+1)  ;
-                vert[index] = new Vector3((size) * Mathf.Cos(angle), ((float) j /section)*ySize, (size) * Mathf.Sin(angle));
-                //uv[index] = new Vector2( (float) i / (resolution) * uvTile.x ,1 * uvTile.y);
+
+                float height = ((float) j / section);
+                
+                vert[index] = new Vector3((sizeCurve.Evaluate(height) * size) * Mathf.Cos(angle), height*ySize, (sizeCurve.Evaluate(height) * size) * Mathf.Sin(angle));
+                uv[index] = new Vector2( (float) i / (resolution) * uvTile.x ,height * uvTile.y);
                 vertex[index] = vert[index];
+
+                if (colorMode == ColorMode.Uniform)
+                {
+                    colors[index] = color;
+                }
+                else
+                {
+                    colors[index] = gradientColor.Evaluate(height);
+                }
+                
             }
         
         }
@@ -798,51 +837,61 @@ public class Generator : MonoBehaviour
         {
             for (int i = 0; i < resolution; i++)
             {
-                print(i);
+                //print(i);
                 int triangleIndex = i * 3*2 +  (resolution*2 )*3 * j;
 
                 int step = i + j * (resolution+1);
                 
                 //print(triangleIndex);
                 //print(triangleIndex);
-                
-                triangles[triangleIndex] = step;
-                triangles[triangleIndex+1] = step+resolution+1;
-                triangles[triangleIndex+2] = step+1;
-                
-                triangles[triangleIndex+3] = step+1;
-                triangles[triangleIndex+4] = step+resolution+1;
-                triangles[triangleIndex+5] = step+resolution+2;
 
+                if (flipFaces)
+                {
+                    triangles[triangleIndex] = step;
+                    triangles[triangleIndex+2] = step+resolution+1;
+                    triangles[triangleIndex+1] = step+1;
+                
+                    triangles[triangleIndex+3] = step+1;
+                    triangles[triangleIndex+5] = step+resolution+1;
+                    triangles[triangleIndex+4] = step+resolution+2;
+                }
+                else
+                {
+                    triangles[triangleIndex] = step;
+                    triangles[triangleIndex+1] = step+resolution+1;
+                    triangles[triangleIndex+2] = step+1;
+                
+                    triangles[triangleIndex+3] = step+1;
+                    triangles[triangleIndex+4] = step+resolution+1;
+                    triangles[triangleIndex+5] = step+resolution+2;
+                }
             }
         }
-
-
-        // int step = 0;
-        // for (int i = 0; i < resolution*2; i+=2)
-        // {
-        //     int t = i * 3;
-        //     
-        //     triangles[t] = step;
-        //     triangles[t+1] = step+1;
-        //     triangles[t+2] = step+2;
-        //     
-        //     
-        //     triangles[t+3] = step+2;
-        //     triangles[t+4] = step+1;
-        //     triangles[t+5] = step+3;
-        //
-        //     step += 2;
-        // }
+        
 
         mesh.vertices = vert;
         mesh.triangles = triangles;
-        //mesh.uv = uv;
+        mesh.uv = uv;
+        mesh.colors = colors;
 
-
-       // mesh.SetColors(SetVertexColor(vert.Length));
+        //mesh.SetColors(SetVertexColor(vert.Length));
 
         mesh.RecalculateNormals();
+        normals = mesh.normals;
+        
+        for (int j = 0; j <= section; j++)
+        {
+            
+            
+            int indexA = 0 +  j *(resolution+1)  ;
+            int indexB = resolution +  j *(resolution+1)  ;
+
+            Vector3 newNormal = (normals[indexB] + normals[indexA])/2;
+            normals[indexA] =newNormal;
+            normals[indexB] =newNormal;
+        }
+        
+        mesh.normals = normals;
 
         GameObject gameObject = new GameObject();
         gameObject.transform.position = transform.position;
@@ -1020,9 +1069,12 @@ public class Generator : MonoBehaviour
 
      private void OnDrawGizmos()
      {
-         for (int i = 0; i < vertex.Length; i++)
+         if (showVertices)
          {
-             Handles.Label(vertex[i], i.ToString());
+             for (int i = 0; i < vertex.Length; i++)
+             {
+                 Handles.Label(vertex[i], i.ToString());
+             }
          }
      }
 
