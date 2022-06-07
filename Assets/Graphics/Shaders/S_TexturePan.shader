@@ -57,8 +57,10 @@ Shader "Dorian/S_TexturePan"
                 fixed4 col = tex2D(_MainTex, i.uv) * _Color;
                 float alpha = saturate(i.col.a - (col.r*2-1)*_NoiseAlphaEffect);
                 clip(alpha-.5);
+
+                float4 final = float4(i.col.rgb ,1);
                 
-                return col;
+                return final;
             }
             ENDCG
         }

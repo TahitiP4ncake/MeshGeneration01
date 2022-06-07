@@ -68,6 +68,11 @@ public class Generator : MonoBehaviour
     public int[] triangles;
 
 
+    private Mesh mesh;
+    private MeshFilter meshFilter;
+    private MeshRenderer renderer;
+    
+
 
     void OnValidate()
     {
@@ -90,6 +95,30 @@ public class Generator : MonoBehaviour
                 StartCoroutine(DestroyEndOfFrame(lastMesh));
             }
         }
+
+        
+
+        if (lastMesh == null)
+        {
+            GameObject gameObject = new GameObject();
+            gameObject.transform.position = transform.position;
+            gameObject.transform.rotation = transform.rotation;
+            lastMesh = gameObject;
+            lastMesh.transform.SetParent(transform);
+            
+            if (meshFilter == null)
+            {
+                meshFilter = lastMesh.AddComponent<MeshFilter>();
+            }
+
+            if (renderer == null)
+            {
+                renderer = lastMesh.AddComponent<MeshRenderer>();
+                renderer.material = mat;
+            }
+        }
+
+        
 
         switch (meshType)
         {
@@ -115,7 +144,7 @@ public class Generator : MonoBehaviour
                 lastMesh = GenerateCircle();
                 break;
             case MeshType.Cylinder:
-                lastMesh = GenerateCylinderSubdiv();
+                GenerateCylinderSubdiv();
                 break;
             case MeshType.Cone:
                 lastMesh = GenerateCone();
@@ -805,8 +834,7 @@ public class Generator : MonoBehaviour
         
         for (int j = 0; j <= section; j++)
         {
-            
-            
+
             for (int i = 0; i <= resolution; i++)
             {
                 float angle = (float) i / (resolution) * Mathf.PI * 2;
@@ -816,7 +844,7 @@ public class Generator : MonoBehaviour
 
                 float height = ((float) j / section);
                 
-                vert[index] = new Vector3((sizeCurve.Evaluate(height) * size) * Mathf.Cos(angle), height*ySize, (sizeCurve.Evaluate(height) * size) * Mathf.Sin(angle));
+                vert[index] = new Vector3((sizeCurve.Evaluate(height) * size * xSize) * Mathf.Cos(angle), height*ySize, (sizeCurve.Evaluate(height) * size * zSize) * Mathf.Sin(angle));
                 uv[index] = new Vector2( (float) i / (resolution) * uvTile.x ,height * uvTile.y);
                 vertex[index] = vert[index];
 
@@ -893,16 +921,9 @@ public class Generator : MonoBehaviour
         
         mesh.normals = normals;
 
-        GameObject gameObject = new GameObject();
-        gameObject.transform.position = transform.position;
-        gameObject.transform.rotation = transform.rotation;
-        
-        MeshFilter meshFilter = gameObject.AddComponent<MeshFilter>();
         meshFilter.mesh = mesh;
-        MeshRenderer meshRenderer = gameObject.AddComponent<MeshRenderer>();
-        meshRenderer.material = mat;
-
-        gameObject.name = "cylindre";
+        mesh.name = "cylindre";
+        lastMesh.name = "cylindre";
         return gameObject;
     }
     
